@@ -1,14 +1,92 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const auth = require('../middleware/auth');
-const User = require('../models/User');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const auth = require("../middleware/auth");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
-const storage = multer.memoryStorage(); // <-- Use memory storage to keep file in RAM
+// Setup multer to store files on disk
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "..", "uploads");
+    fs.mkdirSync(uploadPath, { recursive: true }); // ensure folder exists
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `profile-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
 const upload = multer({ storage });
 
-// PUT /api/auth/profile - update profile + photo stored in DB as base64
-router.put('/profile', auth, upload.single('photo'), async (req, res) => {
+// ✅ Signup Route
+router.post("/signup", async (req, res) => {
+  const { fullName, email, password } = req.body;
+
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
+      return res.status(400).json({ message: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      fullName,
+      email,
+      password: hashedPassword,
+    });
+
+    await newUser.save();
+
+    res.status(201).json({ message: "User created successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error during signup" });
+  }
+});
+
+// ✅ Signin Route
+router.post("/signin", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(400).json({ message: "Invalid email or password" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid email or password" });
+
+    const token = jwt.sign(
+      { userId: user._id, username: user.fullName },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        bio: user.bio,
+        photo: user.photo ? `${req.protocol}://${req.get("host")}${user.photo}` : null,
+        joined: user.joined,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error during signin" });
+  }
+});
+
+// ✅ Profile Update Route (with photo upload)
+router.put("/profile", auth, upload.single("photo"), async (req, res) => {
   try {
     const updateData = {
       fullName: req.body.fullName,
@@ -16,21 +94,30 @@ router.put('/profile', auth, upload.single('photo'), async (req, res) => {
     };
 
     if (req.file) {
-      // Convert buffer to base64 string with mime-type prefix
-      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-      updateData.photo = base64Image;
+      updateData.photo = `/uploads/${req.file.filename}`;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
       updateData,
       { new: true, runValidators: true }
-    ).select('-password');
+    ).select("-password");
 
-    res.json({ user: updatedUser });
+    res.json({
+      user: {
+        _id: updatedUser._id,
+        fullName: updatedUser.fullName,
+        email: updatedUser.email,
+        bio: updatedUser.bio,
+        photo: updatedUser.photo
+          ? `${req.protocol}://${req.get("host")}${updatedUser.photo}`
+          : null,
+        joined: updatedUser.joined,
+      },
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error updating profile' });
+    res.status(500).json({ message: "Server error updating profile" });
   }
 });
 

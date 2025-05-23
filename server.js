@@ -19,7 +19,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 const authRoutes = require("./routes/authRoutes");
 const blogRoutes = require("./routes/blogRoutes");
+const userRoutes = require('./routes/userRoutes');
 
+app.use('/api/users', userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 

@@ -1,62 +1,58 @@
-// seedUsers.js
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const User = require("./models/User");
+const mongoose = require('mongoose');
+const User = require('./models/User');
 
-dotenv.config();
-
-const MONGO_URI = process.env.MONGO_URI || "your-mongodb-uri-here";
+const uri = 'mongodb+srv://n200374:Anirudh.9493@unfold-ink.k8ptnwa.mongodb.net/?retryWrites=true&w=majority&appName=unfold-ink';
 
 const dummyUsers = [
   {
     fullName: "Alice Johnson",
-    email: "alice.johnson@example.com",
-    password: "password123", // You might want to hash this in a real app
-    bio: "Tech enthusiast and blogger.",
-    photo: "alice.jpg",
+    email: "alice@example.com",
+    password: "hashedpassword1",
+    photo: null,
+    bio: "Developer and writer.",
   },
   {
-    name: "Bob Smith",
-    email: "bob.smith@example.com",
-    password: "password123",
-    bio: "Loves writing about politics and society.",
-    photo: "bob.jpg",
+    fullName: "Bob Smith",
+    email: "bob@example.com",
+    password: "hashedpassword2",
+    photo: null,
+    bio: "Love blogging about tech.",
   },
   {
-    name: "Carol Lee",
-    email: "carol.lee@example.com",
-    password: "password123",
-    bio: "Culture and movies expert.",
-    photo: "carol.jpg",
+    fullName: "Charlie Brown",
+    email: "charlie@example.com",
+    password: "hashedpassword3",
+    photo: null,
+    bio: "Full stack enthusiast.",
   },
-  {
-    name: "David Kim",
-    email: "david.kim@example.com",
-    password: "password123",
-    bio: "Sports fanatic and cricket analyst.",
-    photo: "david.jpg",
-  },
+  
 ];
 
 async function seedUsers() {
   try {
-    await mongoose.connect(MONGO_URI, {
+    await mongoose.connect(uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log("Connected to MongoDB");
+    console.log("Connected to MongoDB Atlas");
 
-    // Clear existing users if you want to start fresh
-    await User.deleteMany({});
-    console.log("Cleared existing users");
+    for (const userData of dummyUsers) {
+      // Check if user already exists by email
+      const existingUser = await User.findOne({ email: userData.email });
+      if (existingUser) {
+        console.log(`User with email ${userData.email} already exists. Skipping...`);
+        continue; // Skip to next user
+      }
 
-    // Insert dummy users
-    const users = await User.insertMany(dummyUsers);
-    console.log(`Inserted ${users.length} users`);
+      // Insert new user
+      const user = new User(userData);
+      await user.save();
+      console.log(`User ${user.fullName} added.`);
+    }
 
-    mongoose.connection.close();
-  } catch (error) {
-    console.error("Error seeding users:", error);
+    mongoose.disconnect();
+  } catch (err) {
+    console.error("Error seeding users:", err);
   }
 }
 
