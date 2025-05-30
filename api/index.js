@@ -1,34 +1,47 @@
 const express = require("express");
-const serverless = require("serverless-http");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const cors = require("cors");
+const path = require("path");
+const serverless = require("serverless-http");
+
 dotenv.config();
 
 const app = express();
+
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-let isConnected = false;
+// Static assets (optional for local, but won't work in Vercel)
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
-async function connectDB() {
-  if (isConnected) return;
-  await mongoose.connect(process.env.MONGO_URI);
-  isConnected = true;
-}
-
-connectDB();
-
-app.get("/", (req, res) => {
-  res.send("API working");
-});
-
-// Routes (don't prefix with /api here)
+// Routes
 const authRoutes = require("../routes/authRoutes");
 const blogRoutes = require("../routes/blogRoutes");
 const userRoutes = require("../routes/userRoutes");
 
-app.use("/auth", authRoutes);
-app.use("/blogs", blogRoutes);
-app.use("/users", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/blogs", blogRoutes);
+app.use("/api/users", userRoutes);
 
-module.exports = require("serverless-http")(app);
+// Ensure DB connection only runs once
+let isConnected = false;
 
+async function connectToDatabase() {
+  if (isConnected) return;
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    isConnected = true;
+    console.log("MongoDB connected");
+  } catch (err) {
+    console.error("MongoDB connection error:", err);
+  }
+}
+connectToDatabase();
+
+// Export handler for Vercel
+module.exports = serverless(app);
