@@ -8,8 +8,26 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// CORS setup: Allow localhost frontend during development
+// and fallback to allowing all origins in production
+const allowedOrigins = [
+  "http://localhost:3000",           // React dev server
+  "https://unfold-ink2-0.vercel.app/", // Add your real frontend URL here
+];
+
+// Use CORS middleware with dynamic origin based on request origin
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like Postman) or from allowedOrigins list
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true, // Allow cookies/auth headers
+}));
+
 app.use(express.json());
 
 // MongoDB connection setup
