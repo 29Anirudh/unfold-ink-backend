@@ -3,15 +3,15 @@ const router = express.Router();
 const Blog = require("../models/Blog");
 const auth = require("../middleware/auth");
 const multer = require("multer");
-const path = require("path");
+const cloudinary = require("../utils/cloudinary");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
-// Multer setup for image uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "blog-images",
+    allowed_formats: ["jpg", "jpeg", "png"],
+    transformation: [{ width: 1200, height: 800, crop: "limit" }],
   },
 });
 const upload = multer({ storage });
@@ -25,11 +25,11 @@ router.post("/", auth, upload.single("featuredImage"), async (req, res) => {
       .json({ message: "Title, content, and category are required." });
   }
   try {
-    const featuredImage = req.file ? `/uploads/${req.file.filename}` : null;
+    const featuredImage = req.file ? req.file.path : null;
     const blog = new Blog({
       title,
       category,
-      tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
+      tags: tags && tags.trim() !== "" ? tags.split(",").map(t => t.trim()) : [],
       content,
       status,
       featuredImage,

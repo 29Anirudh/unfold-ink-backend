@@ -4,23 +4,18 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
+const cloudinary = require("../utils/cloudinary");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 // Setup multer to store files on disk
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "..", "uploads");
-    fs.mkdirSync(uploadPath, { recursive: true }); // ensure folder exists
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `profile-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "user-profiles",
+    allowed_formats: ["jpg", "jpeg", "png"],
+    transformation: [{ width: 500, height: 500, crop: "limit" }],
   },
 });
-
 const upload = multer({ storage });
 
 // ✅ Signup Route
@@ -75,7 +70,7 @@ router.post("/signin", async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         bio: user.bio,
-        photo: user.photo ? `${req.protocol}://${req.get("host")}${user.photo}` : null,
+        photo: user.photo ? user.photo : null,
         joined: user.joined,
       },
     });
@@ -94,7 +89,7 @@ router.put("/profile", auth, upload.single("photo"), async (req, res) => {
     };
 
     if (req.file) {
-      updateData.photo = `/uploads/${req.file.filename}`;
+      updateData.photo = req.file.path; // Cloudinary returns full URL
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -109,9 +104,7 @@ router.put("/profile", auth, upload.single("photo"), async (req, res) => {
         fullName: updatedUser.fullName,
         email: updatedUser.email,
         bio: updatedUser.bio,
-        photo: updatedUser.photo
-          ? `${req.protocol}://${req.get("host")}${updatedUser.photo}`
-          : null,
+        photo: updatedUser.photo ? updatedUser.photo : null,
         joined: updatedUser.joined,
       },
     });
