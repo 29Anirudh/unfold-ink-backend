@@ -26,5 +26,5 @@ app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 
 // Connect to MongoDB and start server
-mongoose.connect(MONGO_URI);
+mongoose.connect(process.env.MONGO_URI);
 //This is the main server or app or index.js
