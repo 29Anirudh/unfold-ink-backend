@@ -25,7 +25,7 @@ async function connectDB() {
     console.error("❌ MongoDB connection error:", err);
   }
 }
-connectDB(); // Call this once
+connectDB();
 
 // Routes
 const authRoutes = require("../routes/authRoutes");
@@ -36,6 +36,5 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 
-// Serverless export
-module.exports = app;
-module.exports.handler = serverless(app);
+// ✅ Export only the handler
+module.exports = serverless(app);
