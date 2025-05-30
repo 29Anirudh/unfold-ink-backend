@@ -9,11 +9,10 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Static assets (optional for local, but won't work in Vercel)
+// Optional: for serving static files (not persistent in Vercel)
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // Routes
@@ -25,23 +24,21 @@ app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/users", userRoutes);
 
-// Ensure DB connection only runs once
+// MongoDB connection (avoid reconnecting on every request)
 let isConnected = false;
 
 async function connectToDatabase() {
   if (isConnected) return;
-  try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    isConnected = true;
-    console.log("MongoDB connected");
-  } catch (err) {
-    console.error("MongoDB connection error:", err);
-  }
+  await mongoose.connect(process.env.MONGO_URI);
+  isConnected = true;
+  console.log("✅ MongoDB connected");
 }
-connectToDatabase();
 
-// Export handler for Vercel
-module.exports = serverless(app);
+// Main serverless handler
+const handler = async (req, res) => {
+  await connectToDatabase();
+  const expressHandler = serverless(app);
+  return expressHandler(req, res);
+};
+
+module.exports = handler;
