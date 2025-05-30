@@ -12,7 +12,7 @@ const app = express();
 // and fallback to allowing all origins in production
 const allowedOrigins = [
   "http://localhost:3000",           // React dev server
-  "https://unfold-ink2-0.vercel.app/", // Add your real frontend URL here
+  "https://unfold-ink2-0.vercel.app", // Add your real frontend URL here
 ];
 
 // Use CORS middleware with dynamic origin based on request origin
