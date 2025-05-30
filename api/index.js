@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const serverless = require("serverless-http");
-const path = require("path");
 
 dotenv.config();
 
@@ -13,50 +12,52 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Quick route for root to confirm server is running
+// MongoDB connection setup
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) return;
+
+  try {
+    const db = await mongoose.connect(process.env.MONGO_URI, {
+      bufferCommands: false,
+    });
+
+    isConnected = db.connections[0].readyState === 1;
+    console.log("✅ MongoDB connected");
+  } catch (error) {
+    console.error("❌ MongoDB connection error:", error);
+    throw error;
+  }
+}
+
+// Middleware to ensure MongoDB connection per request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ message: "MongoDB connection failed", error: err.message });
+  }
+});
+
+// Routes
 app.get("/", (req, res) => {
   res.send("✅ Backend is running on Vercel");
 });
 
-// Quick handler for favicon.ico to avoid timeout errors
 app.get("/favicon.ico", (req, res) => res.status(204).end());
 
-// Static files serving (optional, only if you have uploads locally)
-// app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
-
-// Import your route handlers
+// Import route handlers
 const authRoutes = require("../routes/authRoutes");
 const blogRoutes = require("../routes/blogRoutes");
 const userRoutes = require("../routes/userRoutes");
 
-// Use routes
+// Use route handlers
 app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/users", userRoutes);
 
-// MongoDB connection setup (connect once globally)
-let isConnected = false;
-
-async function connectDB() {
-  if (isConnected) {
-    return;
-  }
-  try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      // Optional: useUnifiedTopology and useNewUrlParser are default in recent mongoose
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
-    });
-    isConnected = true;
-    console.log("✅ MongoDB connected");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
-  }
-}
-
-// Connect before serverless handler runs
-connectDB();
-
-// Export app and serverless handler for Vercel
+// Export for Vercel
 module.exports = app;
 module.exports.handler = serverless(app);
