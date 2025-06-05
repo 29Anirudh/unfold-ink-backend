@@ -16,7 +16,6 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage });
 
-// POST create blog (with featured image)
 router.post("/", auth, upload.single("featuredImage"), async (req, res) => {
   const { title, category, tags, content, status } = req.body;
   if (!title || !content || !category) {
@@ -89,6 +88,29 @@ router.post("/:id/comment", auth, async (req, res) => {
     await blog.save();
 
     res.status(201).json({ message: "Comment added", comment });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Delete a comment from a blog post
+router.delete("/:blogId/comments/:commentId", auth, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.blogId);
+    if (!blog) return res.status(404).json({ message: "Blog not found" });
+
+    const comment = blog.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    // Only the original commenter can delete
+    if (comment.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Not authorized to delete this comment" });
+    }
+
+    comment.remove();
+    await blog.save();
+
+    res.status(200).json({ message: "Comment deleted" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
