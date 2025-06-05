@@ -102,19 +102,23 @@ router.delete("/:blogId/comments/:commentId", auth, async (req, res) => {
     const comment = blog.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    // Only the original commenter can delete
+    console.log("User from token:", req.user.userId);
+    console.log("Comment userId:", comment.userId.toString());
+
     if (comment.userId.toString() !== req.user.userId) {
       return res.status(403).json({ message: "Not authorized to delete this comment" });
     }
 
-    comment.remove();
+    blog.comments.pull(comment._id);  // ✅ safe way
     await blog.save();
 
     res.status(200).json({ message: "Comment deleted" });
   } catch (error) {
+    console.error("Error deleting comment:", error);  // ✅ helpful log
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 // POST add a rating to a blog
 router.post("/:id/rate", auth, async (req, res) => {
