@@ -86,8 +86,8 @@ router.post("/:id/comment", auth, async (req, res) => {
 
     blog.comments.push(comment);
     await blog.save();
-
-    res.status(201).json({ message: "Comment added", comment });
+const newComment = blog.comments[blog.comments.length - 1];
+res.status(201).json({ message: "Comment added", comment: newComment });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
